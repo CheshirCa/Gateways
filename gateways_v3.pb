@@ -1,5 +1,9 @@
 ﻿EnableExplicit
 
+#AppName    = "Gateway Monitor"
+#AppVersion = "3.1"
+#AppTitle   = #AppName + " " + #AppVersion
+
 #WindowMain = 1
 #TrayIcon   = 1
 #TrayImage  = 1
@@ -10,6 +14,7 @@
 #MenuReloadConfig = 8998
 #MenuExit         = 9000
 #MenuGatewayBase  = 1000
+#MenuAppInfo      = 999
 
 #ERROR_ALREADY_EXISTS = 183
 #LOG_ROTATE_SIZE = 5242880 ; 5 MB
@@ -195,25 +200,19 @@ Procedure.i CreateSampleConfig(file.s)
   WriteStringN(f, "log_enabled=1")
   WriteStringN(f, "log_file=gateways.log")
   WriteStringN(f, "")
-  WriteStringN(f, "[Gateways]")
-  WriteStringN(f, "count=3")
-  WriteStringN(f, "")
-  WriteStringN(f, "[Gateway1]")
-  WriteStringN(f, "name=VPN-Server-1")
+  WriteStringN(f, "[VPN-Server-1]")
   WriteStringN(f, "host=10.10.10.1")
   WriteStringN(f, "port=8291")
   WriteStringN(f, "enabled=1")
   WriteStringN(f, "alert_down=Упал основной VPN")
   WriteStringN(f, "alert_up=Основной VPN восстановлен")
   WriteStringN(f, "")
-  WriteStringN(f, "[Gateway2]")
-  WriteStringN(f, "name=VPN-Server-2")
+  WriteStringN(f, "[VPN-Server-2]")
   WriteStringN(f, "host=10.20.20.1")
   WriteStringN(f, "port=8291")
   WriteStringN(f, "enabled=1")
   WriteStringN(f, "")
-  WriteStringN(f, "[Gateway3]")
-  WriteStringN(f, "name=Office-Network")
+  WriteStringN(f, "[Office-Network]")
   WriteStringN(f, "host=192.168.50.1")
   WriteStringN(f, "port=8291")
   WriteStringN(f, "enabled=1")
@@ -236,14 +235,18 @@ EndProcedure
 
 ; Конфигурация сначала полностью читается во временный список. Действующие
 ; настройки заменяются только после успешного чтения и проверки всех полей.
-Procedure.i LoadConfig()
+Procedure.i LoadConfig(configPath.s = "")
   Protected NewList loaded.Gateway()
-  Protected count.i, i.i, group.s
+  Protected count.i, group.s
   Protected interval.i, failLimit.i, recoverLimit.i, logOn.i, enabledValue.i
   Protected logPath.s, appDirectory.s
   
   ConfigError = ""
-  ConfigFile = GetPathPart(ProgramFilename()) + "gateways.ini"
+  If configPath = ""
+    ConfigFile = GetPathPart(ProgramFilename()) + "gateways.ini"
+  Else
+    ConfigFile = configPath
+  EndIf
   appDirectory = GetPathPart(ProgramFilename())
   
   If FileSize(ConfigFile) = -1
@@ -277,44 +280,56 @@ Procedure.i LoadConfig()
     ConfigError = "log_file не должен быть пустым"
   EndIf
   
-  PreferenceGroup("Gateways")
-  count = ReadPreferenceInteger("count", 0)
-  If ConfigError = "" And (count < 0 Or count > #MAX_GATEWAYS)
-    ConfigError = "count должен быть в диапазоне 0.." + Str(#MAX_GATEWAYS)
-  EndIf
-  
   If ConfigError = ""
-    For i = 1 To count
-      group = "Gateway" + Str(i)
-      PreferenceGroup(group)
-      
-      AddElement(loaded())
-      loaded()\name = Trim(ReadPreferenceString("name", group))
-      loaded()\host = Trim(ReadPreferenceString("host", ""))
-      loaded()\port = ReadPreferenceInteger("port", 8291)
-      enabledValue = ReadPreferenceInteger("enabled", 1)
-      loaded()\enabled = Bool(enabledValue)
-      loaded()\state = #GatewayStateUnknown
-      loaded()\failStreak = 0
-      loaded()\okStreak = 0
-      loaded()\lastCheck = "-"
-      loaded()\alertDown = ReadPreferenceString("alert_down", "")
-      loaded()\alertUp = ReadPreferenceString("alert_up", "")
-      
-      If loaded()\name = ""
-        ConfigError = group + ": name не должен быть пустым"
-        Break
-      ElseIf enabledValue <> 0 And enabledValue <> 1
-        ConfigError = group + ": enabled должен быть равен 0 или 1"
-        Break
-      ElseIf loaded()\enabled And loaded()\host = ""
-        ConfigError = group + ": для включённого шлюза требуется host"
-        Break
-      ElseIf loaded()\enabled And (loaded()\port < 1 Or loaded()\port > 65535)
-        ConfigError = group + ": port должен быть в диапазоне 1..65535"
-        Break
-      EndIf
-    Next
+    If ExaminePreferenceGroups()
+      While NextPreferenceGroup()
+        group = Trim(PreferenceGroupName())
+        
+        ; Settings содержит глобальные параметры. Все остальные секции
+        ; являются шлюзами, а имя секции используется как имя шлюза.
+        If LCase(group) <> "settings"
+          If LCase(group) = "gateways"
+            ConfigError = "Обнаружен старый формат INI. Удалите секцию [Gateways] и используйте названия шлюзов как имена секций."
+            Break
+          EndIf
+          
+          count + 1
+          If count > #MAX_GATEWAYS
+            ConfigError = "Количество шлюзов не должно превышать " + Str(#MAX_GATEWAYS)
+            Break
+          EndIf
+          
+          AddElement(loaded())
+          loaded()\name = group
+          loaded()\host = Trim(ReadPreferenceString("host", ""))
+          loaded()\port = ReadPreferenceInteger("port", 8291)
+          enabledValue = ReadPreferenceInteger("enabled", 1)
+          loaded()\enabled = Bool(enabledValue)
+          loaded()\state = #GatewayStateUnknown
+          loaded()\failStreak = 0
+          loaded()\okStreak = 0
+          loaded()\lastCheck = "-"
+          loaded()\alertDown = ReadPreferenceString("alert_down", "")
+          loaded()\alertUp = ReadPreferenceString("alert_up", "")
+          
+          If loaded()\name = ""
+            ConfigError = "Имя секции шлюза не должно быть пустым"
+            Break
+          ElseIf enabledValue <> 0 And enabledValue <> 1
+            ConfigError = group + ": enabled должен быть равен 0 или 1"
+            Break
+          ElseIf loaded()\enabled And loaded()\host = ""
+            ConfigError = group + ": для включённого шлюза требуется host"
+            Break
+          ElseIf loaded()\enabled And (loaded()\port < 1 Or loaded()\port > 65535)
+            ConfigError = group + ": port должен быть в диапазоне 1..65535"
+            Break
+          EndIf
+        EndIf
+      Wend
+    Else
+      ConfigError = "Не удалось прочитать секции конфигурации"
+    EndIf
   EndIf
   
   ClosePreferences()
@@ -586,13 +601,13 @@ Procedure UpdateTrayIcon()
   ChangeSysTrayIcon(#TrayIcon, ImageID(#TrayImage))
   
   If activeCount = 0
-    tooltip = "Gateways: NO ACTIVE GATEWAYS"
+    tooltip = #AppTitle + ": NO ACTIVE GATEWAYS"
   ElseIf hasFail
-    tooltip = "Gateways: FAIL"
+    tooltip = #AppTitle + ": FAIL"
   ElseIf hasUnknown
-    tooltip = "Gateways: CHECKING"
+    tooltip = #AppTitle + ": CHECKING"
   Else
-    tooltip = "Gateways: OK"
+    tooltip = #AppTitle + ": OK"
   EndIf
   
   SysTrayIconToolTip(#TrayIcon, tooltip)
@@ -606,6 +621,9 @@ Procedure RebuildPopupMenu()
   EndIf
   
   CreatePopupMenu(#PopupMenu)
+  MenuItem(#MenuAppInfo, #AppTitle)
+  DisableMenuItem(#PopupMenu, #MenuAppInfo, #True)
+  MenuBar()
   
   id = #MenuGatewayBase
   
@@ -675,13 +693,13 @@ If AppMutex = 0 Or GetLastError_() = #ERROR_ALREADY_EXISTS
 EndIf
 
 If Not LoadConfig()
-  MessageRequester("Gateway Monitor", ConfigError, #PB_MessageRequester_Error)
+  MessageRequester(#AppTitle, ConfigError, #PB_MessageRequester_Error)
   CloseHandle_(AppMutex)
   End 1
 EndIf
 
-If Not OpenWindow(#WindowMain, 0, 0, 1, 1, "", #PB_Window_Invisible)
-  MessageRequester("Gateway Monitor", "Не удалось создать служебное окно.", #PB_MessageRequester_Error)
+If Not OpenWindow(#WindowMain, 0, 0, 1, 1, #AppTitle, #PB_Window_Invisible)
+  MessageRequester(#AppTitle, "Не удалось создать служебное окно.", #PB_MessageRequester_Error)
   CloseHandle_(AppMutex)
   End 1
 EndIf
@@ -775,4 +793,4 @@ CompilerEndIf
 ; EnableXP
 ; Thread
 ; UseIcon = gateways.ico
-; Executable = gateways_v3.exe
+; Executable = gateways_v3_1.exe

@@ -1,4 +1,4 @@
-# Gateway Monitor v3.0
+# Gateway Monitor v3.1
 
 **Русский** · [English](#english)
 
@@ -25,6 +25,10 @@ Portable Windows-утилита для фонового мониторинга T
 - поддержка Windows x86 и x64;
 - отсутствие внешних библиотек.
 
+## Что изменилось в версии 3.1
+
+Конфигурация стала короче и понятнее. Секции `[Gateways]`, `[Gateway1]`, `[Gateway2]` и параметр `count` больше не используются. Теперь название каждой секции одновременно является названием шлюза.
+
 ## Быстрый старт
 
 1. Скомпилируйте `gateways_v3.pb` с включённым thread-safe runtime и иконкой `gateways.ico`.
@@ -36,7 +40,9 @@ Portable Windows-утилита для фонового мониторинга T
 
 ## Конфигурация
 
-INI читается как UTF-8. Новая конфигурация сначала полностью проверяется и только после этого заменяет действующую. При ошибке приложение продолжает работать с предыдущими настройками и показывает уведомление.
+INI читается как UTF-8. Секция `[Settings]` содержит общие настройки, а каждая следующая секция описывает отдельный шлюз. Имя секции одновременно является именем шлюза, поэтому отдельные параметры `count` и `name` не нужны. Названия секций должны быть уникальными.
+
+Новая конфигурация сначала полностью проверяется и только после этого заменяет действующую. При ошибке приложение продолжает работать с предыдущими настройками и показывает уведомление. Старый нумерованный формат версий 3.0 и ниже необходимо преобразовать в именованные секции.
 
 ```ini
 [Settings]
@@ -46,19 +52,14 @@ recover_count=1
 log_enabled=1
 log_file=gateways.log
 
-[Gateways]
-count=2
-
-[Gateway1]
-name=Router
+[Router]
 host=192.0.2.10
 port=8291
 enabled=1
 alert_down=Router недоступен
 alert_up=Связь с Router восстановлена
 
-[Gateway2]
-name=VPN
+[VPN]
 host=198.51.100.20
 port=443
 enabled=1
@@ -80,7 +81,6 @@ enabled=1
 
 | Параметр | Назначение |
 |---|---|
-| `name` | Непустое имя в tray-меню |
 | `host` | IP-адрес или DNS-имя |
 | `port` | TCP-порт 1–65535 |
 | `enabled` | `1` — проверять, `0` — показать как `DISABLED` |
@@ -114,6 +114,7 @@ Tray-меню показывает имя, состояние и время по
 
 - **Create thread-safe executable**;
 - иконку `gateways.ico`;
+- дополнительный ресурс `gateways.rc`;
 - Windows XP theme support по желанию.
 
 Не включайте **Create console executable**: Gateway Monitor является GUI-приложением.
@@ -121,7 +122,7 @@ Tray-меню показывает имя, состояние и время по
 Пример ручной сборки x64:
 
 ```powershell
-& 'C:\Program Files\PureBasic\Compilers\pbcompiler.exe' gateways_v3.pb /OUTPUT gateways_v3_x64.exe /THREAD /ICON gateways.ico /XP
+& 'C:\Program Files\PureBasic\Compilers\pbcompiler.exe' gateways_v3.pb /OUTPUT gateways_v3.1_x64.exe /THREAD /ICON gateways.ico /RESOURCE gateways.rc /XP
 ```
 
 Для x86 используйте компилятор из `C:\Program Files (x86)\PureBasic\Compilers\pbcompiler.exe`.
@@ -142,7 +143,7 @@ Copyright (c) 2026 CheshirCa
 
 # English
 
-[Русский](#gateway-monitor-v30) · **English**
+[Русский](#gateway-monitor-v31) · **English**
 
 Gateway Monitor is a portable Windows tray utility for monitoring TCP services, MikroTik devices, and VPN gateways.
 
@@ -167,6 +168,10 @@ The application periodically opens a TCP connection to every enabled endpoint an
 - Windows x86 and x64 support;
 - no external libraries.
 
+## What's new in version 3.1
+
+Configuration is now shorter and easier to read. `[Gateways]`, `[Gateway1]`, `[Gateway2]`, and the `count` setting are no longer used. Every section name is now also the gateway name.
+
 ## Quick start
 
 1. Compile `gateways_v3.pb` with the thread-safe runtime and `gateways.ico`.
@@ -178,7 +183,9 @@ If `gateways.ini` is missing and the directory is writable, the application crea
 
 ## Configuration
 
-The INI file is read as UTF-8. A new configuration is fully validated before it replaces the active one. If validation fails, the application keeps the previous settings and displays a notification.
+The INI file is read as UTF-8. `[Settings]` contains global options and every other section describes one gateway. The section name is also used as the gateway name, so separate `count` and `name` values are no longer needed. Section names must be unique.
+
+A new configuration is fully validated before it replaces the active one. If validation fails, the application keeps the previous settings and displays a notification. The numbered configuration format used by version 3.0 and earlier must be converted to named sections.
 
 ```ini
 [Settings]
@@ -188,19 +195,14 @@ recover_count=1
 log_enabled=1
 log_file=gateways.log
 
-[Gateways]
-count=2
-
-[Gateway1]
-name=Router
+[Router]
 host=192.0.2.10
 port=8291
 enabled=1
 alert_down=Router is unavailable
 alert_up=Router connection restored
 
-[Gateway2]
-name=VPN
+[VPN]
 host=198.51.100.20
 port=443
 enabled=1
@@ -222,7 +224,6 @@ A relative `log_file` path is resolved against the executable directory.
 
 | Setting | Purpose |
 |---|---|
-| `name` | Non-empty name shown in the tray menu |
 | `host` | IP address or DNS name |
 | `port` | TCP port in the 1–65535 range |
 | `enabled` | `1` to monitor, `0` to display as `DISABLED` |
@@ -256,6 +257,7 @@ PureBasic 6.40 for the target architecture is required. Enable the following IDE
 
 - **Create thread-safe executable**;
 - the `gateways.ico` application icon;
+- the additional `gateways.rc` resource;
 - Windows XP theme support if desired.
 
 Do not enable **Create console executable**: Gateway Monitor is a GUI application.
@@ -263,7 +265,7 @@ Do not enable **Create console executable**: Gateway Monitor is a GUI applicatio
 Example manual x64 build:
 
 ```powershell
-& 'C:\Program Files\PureBasic\Compilers\pbcompiler.exe' gateways_v3.pb /OUTPUT gateways_v3_x64.exe /THREAD /ICON gateways.ico /XP
+& 'C:\Program Files\PureBasic\Compilers\pbcompiler.exe' gateways_v3.pb /OUTPUT gateways_v3.1_x64.exe /THREAD /ICON gateways.ico /RESOURCE gateways.rc /XP
 ```
 
 For x86 use the compiler at `C:\Program Files (x86)\PureBasic\Compilers\pbcompiler.exe`.
