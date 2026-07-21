@@ -1,0 +1,15 @@
+# Local configuration and runtime data
+gateways.ini
+*.log
+*.old
+
+# Compiled binaries and build directories
+*.exe
+build/
+dist/
+
+# PureBasic temporary files
+*.asm
+*.obj
+*.res
+PureBasic_Compilation*.exe
