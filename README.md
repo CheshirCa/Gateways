@@ -132,7 +132,7 @@ Tray-меню показывает имя, состояние и время по
 
 ## Лицензия
 
-Разрешено свободное использование в личных и внутренних административных целях. Подробности: [LICENSE.md](LICENSE.md).
+Разрешено свободное использование в личных и внутренних административных целях. Подробности: [LICENSE](LICENSE).
 
 Copyright (c) 2026 CheshirCa
 
@@ -274,6 +274,6 @@ The main implementation uses standard PureBasic libraries. WinAPI remains only f
 
 ## License
 
-Free use is permitted for personal and internal administrative purposes. See [LICENSE.md](LICENSE.md).
+Free use is permitted for personal and internal administrative purposes. See [LICENSE](LICENSE).
 
 Copyright (c) 2026 CheshirCa
